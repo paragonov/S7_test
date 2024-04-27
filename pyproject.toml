@@ -1,0 +1,52 @@
+[tool.poetry]
+name = "S7_test"
+version = "1.0.0"
+description = ""
+authors = ["Vladimir <vladimirhoris@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.109.0"
+pydantic-settings = "^2.1.0"
+uvicorn = "^0.26.0"
+sqlalchemy = {extras = ["asyncio"], version = "^2.0.28"}
+aiosqlite = "^0.19.0"
+alembic = "^1.12.0"
+pytest = "^7.4.0"
+loguru = "^0.7.2"
+aiofiles = "^23.2.1"
+aiocsv  = "^1.3.1"
+
+[tool.poetry.group.lint.dependencies]
+ruff = "~0.1.14"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+
+[tool.ruff]
+lint.ignore-init-module-imports = true
+line-length = 120
+include = ["*.py"]
+exclude = [
+    "*.git",
+    "venv",
+    ".venv",
+    "alembic",
+    ".dockerignore",
+    "docker-compose.yml",
+    "pyproject.toml",
+    "pytest.ini",
+    "README.md",
+    "setup.cfg"
+]
+lint.ignore = [
+    "C901", "E501", "E203", "F403", "F405", "D100", "D103", "D104", "BLE001", "FIX002", "B905",
+    "RET505", "SIM114", "SIM102", "B904", "DJ012", "RET508", "RET506", "RET507",
+    "PT019", "B020", "SIM112", "PIE804", "E741", "DJ007", "B019", "B026", "B905", "B008", "ERA001"
+]
+lint.select = ["E", "F", "A", "Q", "B", "COM", "C4", "DJ", "FIX", "PIE", "T20", "PT", "RET", "SIM", "N", "ERA", "ISC", "I"]
+show-source = true
+show-fixes = true
