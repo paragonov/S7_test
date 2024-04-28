@@ -27,7 +27,7 @@ class DatabaseService:
         return result.scalars().all()
 
     @staticmethod
-    async def create(session: AsyncSession, model: Type[FlightsModel], data: dict):
+    async def create(session: AsyncSession, model: Type[FlightsModel], data: dict) -> None:
         new_model = model(**data)
         session.add(new_model)
         await session.commit()
