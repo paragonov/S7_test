@@ -1,0 +1,10 @@
+venv
+.venv
+__pycache__
+.gitignore
+.idea
+.ruff_cache
+.git
+db.sqlite3
+poetry.lock
+

@@ -1,7 +1,3 @@
-__all__ = (
-    "Base"
-    "FlightsModel"
-)
+__all__ = "BaseFlightsModel"
 
-from src.database.models import Base
-from src.database.models import FlightsModel
+from src.database.models import Base, FlightsModel

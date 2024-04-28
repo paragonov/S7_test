@@ -9,15 +9,16 @@ BASE_DIR = Path(__file__).parent.parent
 
 
 class DatabaseSettings(BaseSettings):
-    DB_PATH: str = f"{BASE_DIR}/db.sqlite3"
-    DATABASE_URL: str = f"sqlite+aiosqlite:///{DB_PATH}"
+    DATABASE_URL: str = f"sqlite+aiosqlite:///{BASE_DIR}/db.sqlite3"
+    TEST_DATABASE_URL: str = f"sqlite+aiosqlite:///{BASE_DIR}/db-test.sqlite3"
 
 
 class PathSettings(BaseSettings):
-    PATH_TO_FILES: str = f"{BASE_DIR}/ln/"
-    PATH_TO_JSON_FILES: str = f"{BASE_DIR}/src/tmp/out/"
+    PATH_TO_LN: str = f"{BASE_DIR}/src/tmp/ln/"
+    PATH_TO_OUT: str = f"{BASE_DIR}/src/tmp/out/"
     PATH_TO_OK: str = f"{BASE_DIR}/src/tmp/ok/"
     PATH_TO_ERR: str = f"{BASE_DIR}/src/tmp/err/"
+    PATH_TO_TEST_FILE: str = f"{BASE_DIR}/src/tests/20221129_1223_DME.csv"
 
 
 class Settings(BaseSettings):

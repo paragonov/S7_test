@@ -3,112 +3,102 @@ import csv
 import json
 import os
 import shutil
-from datetime import datetime
+from asyncio import current_task
+from datetime import date, datetime
 from pathlib import Path
 
-import aiocsv
-import aiofiles
 from loguru import logger
+from sqlalchemy.ext.asyncio import async_scoped_session
 
 from src import FlightsModel
-from src.database.db_service import db_service
-from src.entities import JsonStorage, DBStorage
-from src.settings import BASE_DIR, settings
+from src.database.db_service import db_service, session_factory
+from src.entities import DBStorage, JsonStorage
+from src.settings import settings
 
 
 class FileService:
-    reader = None
-    __file_name = None
+    _reader = None
+    _file_name = None
 
-    async def run(self, schedule_time):
+    async def run(self, schedule_time: int) -> None:
+        logger.info(f"Starting file service every {schedule_time}s")
         while True:
-            if list_file_names := os.listdir(BASE_DIR / "ln"):
+            logger.info("Checking ln directory...")
+
+            if list_file_names := os.listdir(settings.file_paths.PATH_TO_LN):
                 for file_name in list_file_names:
-                    with open(settings.file_paths.PATH_TO_FILES + file_name, "r") as f:
-                        self.reader = csv.reader(f)
-                        self.__file_name = Path(file_name).stem
-
+                    logger.info(f"Start process file - {file_name}")
                     try:
-                        json_storage = await self.get_json_storage()
-                        db_storage = await self.get_db_storage()
+                        with open(settings.file_paths.PATH_TO_LN + file_name, "r") as f:
+                            self._reader = csv.DictReader(f, delimiter=";")
+                            self._file_name = Path(file_name).stem
 
-                        await self.converting_file_to_json(json_storage)
-                        await self.write_file_to_db(db_storage)
+                            json_storage = await self.get_json_storage()
+                            db_storage = await self.get_db_storage()
+
+                            await self.converting_file_to_json(json_storage)
+                            await self.write_file_to_db(db_storage)
 
                     except Exception as ex:
                         logger.exception(ex)
                         logger.error(f"Error has occurred. Ex: {str(ex)}")
                         await self.move_file_to_another_dir(
-                            settings.file_paths.PATH_TO_FILES + f"{self.__file_name}.csv",
-                            settings.file_paths.PATH_TO_ERR + f"{self.__file_name}.csv"
+                            settings.file_paths.PATH_TO_LN + file_name,
+                            settings.file_paths.PATH_TO_ERR + file_name,
                         )
-
                     else:
+                        logger.success(f"Successfuly processed file - {file_name}")
                         await self.move_file_to_another_dir(
-                            settings.file_paths.PATH_TO_FILES + f"{self.__file_name}.csv",
-                            settings.file_paths.PATH_TO_OK + f"{self.__file_name}.csv"
+                            settings.file_paths.PATH_TO_LN + file_name,
+                            settings.file_paths.PATH_TO_OK + file_name,
                         )
 
             await asyncio.sleep(schedule_time)
 
-    async def converting_file_to_json(self, json_storage):
+    async def converting_file_to_json(self, json_storage: JsonStorage) -> None:
         json_file_name = await self.get_json_file_name()
-        async with aiofiles.open(json_file_name, "w") as f:
-            await f.write(json.dumps(json_storage.__dict__))
+        with open(json_file_name, "w") as f:
+            f.write(json.dumps(json_storage.__dict__))
 
     @staticmethod
-    async def write_file_to_db(db_storage):
-        await db_service.create(FlightsModel, db_storage.__dict__)
+    async def write_file_to_db(db_storage: DBStorage) -> None:
+        session = async_scoped_session(session_factory, scopefunc=current_task)
+        await db_service.create(session, FlightsModel, db_storage.__dict__)
 
     @staticmethod
-    async def move_file_to_another_dir(old_dir, new_dir):
+    async def move_file_to_another_dir(old_dir: str, new_dir: str) -> None:
         shutil.move(old_dir, new_dir)
 
-    async def get_json_storage(self):
-        date, flt, dep = await self.get_data_from_file_name_for_json()
-        prl = [
-            {
-                "num": row[0].split(";")[0],
-                "surname": row[0].split(";")[1],
-                "firstname": row[0].split(";")[2],
-                "bdate": row[0].split(";")[3],
-            }
-            for row in self.reader
-        ][1:]
+    async def get_json_storage(self) -> JsonStorage:
         return JsonStorage(
-            flt=flt,
-            date=date,
-            dep=dep,
-            prl=prl
+            *await self.get_data_from_file_name_for_json(),
         )
 
-    async def get_db_storage(self):
-        depdate, flt, dep = await self.get_data_from_file_name_for_db()
+    async def get_db_storage(self) -> DBStorage:
         return DBStorage(
-            file_name=self.__file_name,
-            flt=flt,
-            depdate=depdate,
-            dep=dep
+            self._file_name,
+            *await self.get_data_from_file_name_for_db(),
         )
 
-    async def get_data_from_file_name_for_json(self):
-        date, flt, dep = self.__file_name.split("_")
+    async def get_data_from_file_name_for_json(self) -> tuple[int, str, str, list[dict]]:
+        date, flt, dep = self._file_name.split("_")
         date = (await self.validate_date(date)).strftime("%Y-%m-%d")
-        return date, flt, dep
+        prl = list(self._reader)
+        return int(flt), date, dep, prl
 
-    async def get_data_from_file_name_for_db(self):
-        date, flt, dep = self.__file_name.split("_")
-        return await self.validate_date(date), flt, dep
+    async def get_data_from_file_name_for_db(self) -> tuple[int, date, str]:
+        date, flt, dep = self._file_name.split("_")
+        return int(flt), await self.validate_date(date), dep
 
-    async def get_json_file_name(self):
-        return f"{settings.file_paths.PATH_TO_JSON_FILES}/{self.__file_name}.json"
+    async def get_json_file_name(self) -> str:
+        return f"{settings.file_paths.PATH_TO_OUT}/{self._file_name}.json"
 
     @staticmethod
-    async def validate_date(date):
+    async def validate_date(date_in_str: str) -> date:
         try:
-            return datetime.strptime(date, "%Y%m%d").date()
+            return datetime.strptime(date_in_str, "%Y%m%d").date()
         except Exception as ex:
-            logger.error(f"Invalid date. Date: {date}")
+            logger.error(f"Invalid date. Date: {date_in_str}")
             raise ex
 
 

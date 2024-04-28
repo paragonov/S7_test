@@ -1,17 +1,14 @@
-from datetime import datetime, date
+from datetime import date
 
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, declared_attr
+from sqlalchemy.orm import Mapped, declarative_base, mapped_column
 
-
-class Base(DeclarativeBase):
-    __abstract__ = True
-
-    id: Mapped[int] = mapped_column(primary_key=True)
+Base = declarative_base()
 
 
 class FlightsModel(Base):
     __tablename__ = "flights"
 
+    id: Mapped[int] = mapped_column(primary_key=True)
     file_name: Mapped[str] = mapped_column(nullable=False)
     flt: Mapped[int] = mapped_column(nullable=False)
     depdate: Mapped[date] = mapped_column(nullable=False)
